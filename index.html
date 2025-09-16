@@ -445,9 +445,9 @@
             try {
                 // Parallelle aanroepen voor betere performance
                 const [deelleveringenData, magazijnselectieData, inkooppartijData] = await Promise.all([
-                    makeODataRequest('/Deellveringskaart?$filter=Harvest_Year_code eq \'2024\'&$select=Partial_Delivery_No,Customer_reference'),
-                    makeODataRequest('/Magazijnselectie?$filter=Delivery_Status eq \'Open\' and Harvest_Year_Code_Unloading eq \'2024\'&$select=Document_No,Document_Line_No,Item_Desc_Unloading,Size_Code_Unloading,Class_Code_Unloading,Code_Loading,Loading_Date_Planned,Quantity_Input,Quantity_Packaging_1,Packaging_1_Code_Unloading,Quantity_Packaging_2,Packaging_2_Code_Unloading'),
-                    makeODataRequest('/Inkoopcontractregels?$filter=Harvest_Year_Code eq \'2024\' and startswith(Document_No, \'P\')&$select=Buy_from_Vendor_Name,Class_Code,Size_Code,Quantity,Description,Received_Qty_Base,Invoiced_Qty_Base')
+                    makeODataRequest('/Deellveringskaart?$filter=Harvest_Year_code eq \'2025\'&$select=Partial_Delivery_No,Customer_reference'),
+                    makeODataRequest('/Magazijnselectie?$filter=Delivery_Status eq \'Open\' and Harvest_Year_Code_Unloading eq \'2025\'&$select=Document_No,Document_Line_No,Item_Desc_Unloading,Size_Code_Unloading,Class_Code_Unloading,Code_Loading,Loading_Date_Planned,Quantity_Input,Quantity_Packaging_1,Packaging_1_Code_Unloading,Quantity_Packaging_2,Packaging_2_Code_Unloading'),
+                    makeODataRequest('/Inkoopcontractregels?$filter=Harvest_Year_Code eq \'2025\' and startswith(Document_No, \'P\')&$select=Buy_from_Vendor_Name,Class_Code,Size_Code,Quantity,Description,Received_Qty_Base,Invoiced_Qty_Base')
                 ]);
 
                 // Combineer deelleveringen met magazijnselectie (zoals in Power Query)
