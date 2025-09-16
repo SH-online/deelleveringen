@@ -420,22 +420,42 @@
 
         async function makeODataRequest(endpoint) {
             const credentials = btoa(BC_USERNAME + ':' + BC_PASSWORD);
+            const fullUrl = BC_BASE_URL + endpoint;
             
-            const response = await fetch(BC_BASE_URL + endpoint, {
-                method: 'GET',
-                headers: {
-                    'Authorization': 'Basic ' + credentials,
-                    'Accept': 'application/json',
-                    'Content-Type': 'application/json'
+            console.log('🌐 Making OData request to:', fullUrl);
+            console.log('🔑 Using credentials for user:', BC_USERNAME);
+            
+            try {
+                const response = await fetch(fullUrl, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': 'Basic ' + credentials,
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                console.log('📡 Response status:', response.status, response.statusText);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('❌ Response error:', errorText);
+                    throw new Error(`HTTP ${response.status}: ${response.statusText} - ${errorText}`);
                 }
-            });
 
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                const data = await response.json();
+                console.log('📊 Response data structure:', {
+                    hasValue: !!data.value,
+                    valueType: Array.isArray(data.value) ? 'array' : typeof data.value,
+                    valueLength: Array.isArray(data.value) ? data.value.length : 'N/A',
+                    keys: Object.keys(data)
+                });
+                
+                return data.value || [];
+            } catch (error) {
+                console.error('💥 OData request failed:', error);
+                throw error;
             }
-
-            const data = await response.json();
-            return data.value;
         }
 
         async function loadData() {
@@ -445,12 +465,13 @@
             try {
                 // Parallelle aanroepen voor betere performance
                 const [deelleveringenData, magazijnselectieData, inkooppartijData] = await Promise.all([
-                    makeODataRequest('/Deellveringskaart?$filter=Harvest_Year_code eq \'2025\'&$select=Partial_Delivery_No,Customer_reference'),
-                    makeODataRequest('/Magazijnselectie?$filter=Delivery_Status eq \'Open\' and Harvest_Year_Code_Unloading eq \'2025\'&$select=Document_No,Document_Line_No,Item_Desc_Unloading,Size_Code_Unloading,Class_Code_Unloading,Code_Loading,Loading_Date_Planned,Quantity_Input,Quantity_Packaging_1,Packaging_1_Code_Unloading,Quantity_Packaging_2,Packaging_2_Code_Unloading'),
-                    makeODataRequest('/Inkoopcontractregels?$filter=Harvest_Year_Code eq \'2025\' and startswith(Document_No, \'P\')&$select=Buy_from_Vendor_Name,Class_Code,Size_Code,Quantity,Description,Received_Qty_Base,Invoiced_Qty_Base')
+                    makeODataRequest('/Deellveringskaart?$filter=Harvest_Year_code eq \'2024\'&$select=Partial_Delivery_No,Customer_reference'),
+                    makeODataRequest('/Magazijnselectie?$filter=Delivery_Status eq \'Open\' and Harvest_Year_Code_Unloading eq \'2024\'&$select=Document_No,Document_Line_No,Item_Desc_Unloading,Size_Code_Unloading,Class_Code_Unloading,Code_Loading,Loading_Date_Planned,Quantity_Input,Quantity_Packaging_1,Packaging_1_Code_Unloading,Quantity_Packaging_2,Packaging_2_Code_Unloading'),
+                    makeODataRequest('/Inkoopcontractregels?$filter=Harvest_Year_Code eq \'2024\' and startswith(Document_No, \'P\')&$select=Buy_from_Vendor_Name,Class_Code,Size_Code,Quantity,Description,Received_Qty_Base,Invoiced_Qty_Base')
                 ]);
 
                 // Combineer deelleveringen met magazijnselectie (zoals in Power Query)
+                console.log('🔗 Combining data...');
                 deelleveringen = magazijnselectieData.map(mag => {
                     const deellevering = deelleveringenData.find(dl => dl.Partial_Delivery_No === mag.Document_No);
                     return {
@@ -459,15 +480,30 @@
                         Assigned_Vendor: null // Dit veld komt later uit Business Central
                     };
                 });
+                console.log('✅ Combined data:', deelleveringen.length, 'records');
 
                 inkooppartijen = inkooppartijData;
+                console.log('✅ Final inkooppartijen:', inkooppartijen.length, 'records');
+                
+                // Show sample data for debugging
+                if (deelleveringen.length > 0) {
+                    console.log('📋 Sample deellevering:', deelleveringen[0]);
+                }
+                if (inkooppartijen.length > 0) {
+                    console.log('📋 Sample inkooppartij:', inkooppartijen[0]);
+                }
                 
                 renderTable();
                 updateStats();
                 showSuccess(`${deelleveringen.length} deelleveringen geladen`);
 
             } catch (error) {
-                console.error('Error loading data:', error);
+                console.error('💥 Error loading data:', error);
+                console.error('Error details:', {
+                    message: error.message,
+                    stack: error.stack,
+                    name: error.name
+                });
                 showError('Fout bij laden gegevens: ' + error.message);
             } finally {
                 showLoading(false);
