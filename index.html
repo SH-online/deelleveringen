@@ -372,11 +372,145 @@
         const BC_USERNAME = 'Excel';
         const BC_PASSWORD = 'Excel8256!';
 
+        // SharePoint Configuration
+        const SP_SITE_URL = 'https://schaaphollandbv.sharepoint.com/sites/Pootgoed';
+        const SP_LIST_NAME = 'Koppeling';
+
         // Global variables
         let currentAccount = null;
         let deelleveringen = [];
         let inkooppartijen = [];
         let filteredData = [];
+        let sharepointAssignments = {};
+
+        // SharePoint API functions
+        async function getAccessToken() {
+            const tokenRequest = {
+                scopes: [`${SP_SITE_URL}/.default`]
+            };
+            
+            try {
+                const response = await msalInstance.acquireTokenSilent(tokenRequest);
+                return response.accessToken;
+            } catch (error) {
+                const response = await msalInstance.acquireTokenPopup(tokenRequest);
+                return response.accessToken;
+            }
+        }
+
+        async function loadSharePointAssignments() {
+            try {
+                console.log('📋 Loading SharePoint assignments...');
+                const token = await getAccessToken();
+                
+                const response = await fetch(`${SP_SITE_URL}/_api/web/lists/getByTitle('${SP_LIST_NAME}')/items`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Accept': 'application/json'
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`SharePoint API error: ${response.status} ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                sharepointAssignments = {};
+                
+                data.value.forEach(item => {
+                    sharepointAssignments[item.DocumentNo] = {
+                        vendor: item.AssignedVendor,
+                        remarks: item.Remarks || '',
+                        modified: item.Modified,
+                        modifiedBy: item.Author ? item.Author.Title : 'Unknown'
+                    };
+                });
+                
+                console.log('✅ SharePoint assignments loaded:', Object.keys(sharepointAssignments).length, 'items');
+                return sharepointAssignments;
+            } catch (error) {
+                console.error('💥 Error loading SharePoint assignments:', error);
+                showError('Fout bij laden SharePoint gegevens: ' + error.message);
+                return {};
+            }
+        }
+
+        async function saveToSharePoint(documentNo, vendorName, remarks = '') {
+            try {
+                const token = await getAccessToken();
+                
+                // Check if item already exists
+                const existingItem = sharepointAssignments[documentNo];
+                
+                if (existingItem) {
+                    // Update existing item - we need the item ID first
+                    const getResponse = await fetch(`${SP_SITE_URL}/_api/web/lists/getByTitle('${SP_LIST_NAME}')/items?$filter=DocumentNo eq '${documentNo}'`, {
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Accept': 'application/json'
+                        }
+                    });
+                    
+                    const getData = await getResponse.json();
+                    if (getData.value.length > 0) {
+                        const itemId = getData.value[0].Id;
+                        
+                        // Update item
+                        const updateResponse = await fetch(`${SP_SITE_URL}/_api/web/lists/getByTitle('${SP_LIST_NAME}')/items(${itemId})`, {
+                            method: 'POST',
+                            headers: {
+                                'Authorization': `Bearer ${token}`,
+                                'Accept': 'application/json',
+                                'Content-Type': 'application/json',
+                                'X-HTTP-Method': 'MERGE',
+                                'IF-MATCH': '*'
+                            },
+                            body: JSON.stringify({
+                                AssignedVendor: vendorName,
+                                Remarks: remarks
+                            })
+                        });
+                        
+                        if (!updateResponse.ok) {
+                            throw new Error(`Update failed: ${updateResponse.status}`);
+                        }
+                    }
+                } else {
+                    // Create new item
+                    const createResponse = await fetch(`${SP_SITE_URL}/_api/web/lists/getByTitle('${SP_LIST_NAME}')/items`, {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Accept': 'application/json',
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            DocumentNo: documentNo,
+                            AssignedVendor: vendorName,
+                            Remarks: remarks
+                        })
+                    });
+                    
+                    if (!createResponse.ok) {
+                        throw new Error(`Create failed: ${createResponse.status}`);
+                    }
+                }
+                
+                // Update local cache
+                sharepointAssignments[documentNo] = {
+                    vendor: vendorName,
+                    remarks: remarks,
+                    modified: new Date().toISOString(),
+                    modifiedBy: currentAccount.name
+                };
+                
+                console.log('✅ Saved to SharePoint:', documentNo, '→', vendorName);
+                
+            } catch (error) {
+                console.error('💥 Error saving to SharePoint:', error);
+                showError('Fout bij opslaan naar SharePoint: ' + error.message);
+            }
+        }
 
         // Initialize app
         window.addEventListener('load', () => {
@@ -610,6 +744,11 @@
         function onVendorChange(index, vendorName) {
             filteredData[index].Assigned_Vendor = vendorName;
             
+            // Save to SharePoint
+            if (vendorName) {
+                saveToSharePoint(filteredData[index].Document_No, vendorName, filteredData[index].Remarks);
+            }
+            
             // Find the correct row using data-index attribute
             const row = document.querySelector(`tr[data-row-index="${index}"]`);
             if (row) {
@@ -627,7 +766,12 @@
 
         function onRemarksChange(index, remarksText) {
             filteredData[index].Remarks = remarksText;
-            // Auto-save behavior - could be extended to save to Business Central later
+            
+            // Save to SharePoint if there's also a vendor assigned
+            if (filteredData[index].Assigned_Vendor) {
+                saveToSharePoint(filteredData[index].Document_No, filteredData[index].Assigned_Vendor, remarksText);
+            }
+            
             console.log(`Opmerking voor ${filteredData[index].Document_No} aangepast:`, remarksText);
         }
 
