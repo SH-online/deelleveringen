@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deelleveringen - Teler Koppeling</title>
+    <script src="https://alcdn.msauth.net/browser/2.32.2/js/msal-browser.min.js" crossorigin="anonymous"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #0078d4, #106ebe);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            margin-bottom: 10px;
+        }
+        
+        .user-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .login-section {
+            text-align: center;
+            padding: 60px 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .btn {
+            background: #0078d4;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+        
+        .btn:hover {
+            background: #106ebe;
+        }
+        
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+        }
+        
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+            font-style: italic;
+            color: #666;
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #0078d4;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .controls {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .search-box {
+            flex: 1;
+            min-width: 200px;
+        }
+        
+        .search-box input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        
+        .stats {
+            display: flex;
+            gap: 20px;
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .data-table {
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        th {
+            background: #f8f9fa;
+            padding: 12px;
+            text-align: left;
+            border-bottom: 2px solid #dee2e6;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+            vertical-align: top;
+        }
+        
+        tr:hover {
+            background-color: #f8f9fa;
+        }
+        
+        .teler-select {
+            width: 100%;
+            padding: 6px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: white;
+        }
+        
+        .teler-select:focus {
+            outline: none;
+            border-color: #0078d4;
+            box-shadow: 0 0 0 2px rgba(0,120,212,0.2);
+        }
+        
+        .assigned {
+            background-color: #d4edda !important;
+        }
+        
+        .save-btn {
+            background: #28a745;
+            margin-left: 10px;
+            padding: 6px 12px;
+            font-size: 14px;
+        }
+        
+        .save-btn:hover {
+            background: #218838;
+        }
+        
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 12px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .success {
+            background: #d4edda;
+            color: #155724;
+            padding: 12px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .table-container {
+            max-height: 70vh;
+            overflow: auto;
+        }
+        
+        .quantity-info {
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .customer-ref {
+            font-weight: 600;
+            color: #0078d4;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .stats {
+                justify-content: center;
+            }
+            
+            table {
+                font-size: 14px;
+            }
+            
+            th, td {
+                padding: 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="user-info">
+                <div>
+                    <h1>Deelleveringen - Teler Koppeling</h1>
+                    <p>Koppel telers aan deelleveringen op basis van klasse en ras</p>
+                </div>
+                <div id="userInfo" style="display: none;">
+                    <span id="userName"></span>
+                    <button class="btn btn-secondary" onclick="signOut()">Uitloggen</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="loginSection" class="login-section">
+            <h2>Inloggen vereist</h2>
+            <p style="margin: 20px 0;">Log in met je bedrijfsaccount om deelleveringen te beheren.</p>
+            <button class="btn" onclick="signIn()">Inloggen met Microsoft</button>
+        </div>
+
+        <div id="appContent" style="display: none;">
+            <div class="controls">
+                <div class="search-box">
+                    <input type="text" id="searchInput" placeholder="Zoek op documentnummer, klant, artikel..." onkeyup="filterTable()">
+                </div>
+                <button class="btn" onclick="loadData()">🔄 Gegevens verversen</button>
+                <div class="stats">
+                    <span>Totaal: <strong id="totalCount">0</strong></span>
+                    <span>Toegewezen: <strong id="assignedCount">0</strong></span>
+                    <span>Open: <strong id="openCount">0</strong></span>
+                </div>
+            </div>
+
+            <div id="loadingDiv" class="loading">
+                <div class="spinner"></div>
+                <p>Gegevens worden geladen...</p>
+            </div>
+
+            <div id="errorDiv" class="error" style="display: none;"></div>
+            <div id="successDiv" class="success" style="display: none;"></div>
+
+            <div id="dataTableContainer" class="data-table" style="display: none;">
+                <div class="table-container">
+                    <table id="dataTable">
+                        <thead>
+                            <tr>
+                                <th>Doc. Nr.</th>
+                                <th>Klant</th>
+                                <th>Artikel</th>
+                                <th>Klasse</th>
+                                <th>Maat</th>
+                                <th>Datum</th>
+                                <th>Hoeveelheid</th>
+                                <th>Beschikbare Telers</th>
+                                <th>Acties</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dataTableBody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // MSAL Configuration
+        const msalConfig = {
+            auth: {
+                clientId: '6cb74210-3d7e-4805-b21a-bc15b015663e',
+                authority: 'https://login.microsoftonline.com/b4de828a-5fdb-45e1-a590-2dc802e619e4',
+                redirectUri: window.location.href.split('?')[0] // Removes query parameters
+            },
+            cache: {
+                cacheLocation: "localStorage",
+                storeAuthStateInCookie: false
+            }
+        };
+
+        let msalInstance;
+
+        // Initialize MSAL when library is loaded
+        function initializeMsal() {
+            if (typeof msal !== 'undefined') {
+                msalInstance = new msal.PublicClientApplication(msalConfig);
+                initializeApp();
+            } else {
+                setTimeout(initializeMsal, 100); // Retry after 100ms
+            }
+        }
+
+        // Business Central Configuration
+        const BC_BASE_URL = 'https://schaap.agrio.software:7048/BCNL/ODataV4/Company(\'Productieomgeving\')';
+        const BC_USERNAME = 'Excel';
+        const BC_PASSWORD = 'Excel8256!';
+
+        // Global variables
+        let currentAccount = null;
+        let deelleveringen = [];
+        let inkooppartijen = [];
+        let filteredData = [];
+
+        // Initialize app
+        window.addEventListener('load', () => {
+            initializeMsal();
+        });
+
+        async function initializeApp() {
+            try {
+                await msalInstance.initialize();
+                
+                // Check if user is already signed in
+                const accounts = msalInstance.getAllAccounts();
+                if (accounts.length > 0) {
+                    currentAccount = accounts[0];
+                    showAppContent();
+                    await loadData();
+                }
+            } catch (error) {
+                console.error('MSAL initialization failed:', error);
+                showError('Authenticatie-initialisatie mislukt: ' + error.message);
+            }
+        }
+
+        async function signIn() {
+            try {
+                const loginRequest = {
+                    scopes: ["user.read"]
+                };
+
+                const loginResponse = await msalInstance.loginPopup(loginRequest);
+                currentAccount = loginResponse.account;
+                showAppContent();
+                await loadData();
+            } catch (error) {
+                console.error('Login failed:', error);
+                showError('Inloggen mislukt: ' + error.message);
+            }
+        }
+
+        function signOut() {
+            if (currentAccount) {
+                msalInstance.logoutPopup({
+                    account: currentAccount
+                }).then(() => {
+                    currentAccount = null;
+                    showLoginSection();
+                });
+            }
+        }
+
+        function showLoginSection() {
+            document.getElementById('loginSection').style.display = 'block';
+            document.getElementById('appContent').style.display = 'none';
+        }
+
+        function showAppContent() {
+            document.getElementById('loginSection').style.display = 'none';
+            document.getElementById('appContent').style.display = 'block';
+            document.getElementById('userName').textContent = currentAccount.name;
+            document.getElementById('userInfo').style.display = 'block';
+        }
+
+        async function makeODataRequest(endpoint) {
+            const credentials = btoa(BC_USERNAME + ':' + BC_PASSWORD);
+            
+            const response = await fetch(BC_BASE_URL + endpoint, {
+                method: 'GET',
+                headers: {
+                    'Authorization': 'Basic ' + credentials,
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            return data.value;
+        }
+
+        async function loadData() {
+            showLoading(true);
+            hideMessages();
+
+            try {
+                // Parallelle aanroepen voor betere performance
+                const [deelleveringenData, magazijnselectieData, inkooppartijData] = await Promise.all([
+                    makeODataRequest('/Deellveringskaart?$filter=Harvest_Year_code eq \'2024\'&$select=Partial_Delivery_No,Customer_reference'),
+                    makeODataRequest('/Magazijnselectie?$filter=Delivery_Status eq \'Open\' and Harvest_Year_Code_Unloading eq \'2024\'&$select=Document_No,Document_Line_No,Item_Desc_Unloading,Size_Code_Unloading,Class_Code_Unloading,Code_Loading,Loading_Date_Planned,Quantity_Input,Quantity_Packaging_1,Packaging_1_Code_Unloading,Quantity_Packaging_2,Packaging_2_Code_Unloading'),
+                    makeODataRequest('/Inkoopcontractregels?$filter=Harvest_Year_Code eq \'2024\' and startswith(Document_No, \'P\')&$select=Buy_from_Vendor_Name,Class_Code,Size_Code,Quantity,Description,Received_Qty_Base,Invoiced_Qty_Base')
+                ]);
+
+                // Combineer deelleveringen met magazijnselectie (zoals in Power Query)
+                deelleveringen = magazijnselectieData.map(mag => {
+                    const deellevering = deelleveringenData.find(dl => dl.Partial_Delivery_No === mag.Document_No);
+                    return {
+                        ...mag,
+                        Customer_Reference: deellevering ? deellevering.Customer_reference : null,
+                        Assigned_Vendor: null // Dit veld komt later uit Business Central
+                    };
+                });
+
+                inkooppartijen = inkooppartijData;
+                
+                renderTable();
+                updateStats();
+                showSuccess(`${deelleveringen.length} deelleveringen geladen`);
+
+            } catch (error) {
+                console.error('Error loading data:', error);
+                showError('Fout bij laden gegevens: ' + error.message);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        function getMatchingVendors(classCode, description) {
+            return inkooppartijen.filter(vendor => 
+                vendor.Class_Code === classCode && 
+                vendor.Description && description && 
+                vendor.Description.toLowerCase().includes(description.toLowerCase())
+            );
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('dataTableBody');
+            tbody.innerHTML = '';
+
+            filteredData = [...deelleveringen];
+
+            filteredData.forEach((item, index) => {
+                const row = document.createElement('tr');
+                if (item.Assigned_Vendor) {
+                    row.classList.add('assigned');
+                }
+
+                const matchingVendors = getMatchingVendors(item.Class_Code_Unloading, item.Item_Desc_Unloading);
+                
+                let vendorOptions = '<option value="">-- Selecteer teler --</option>';
+                matchingVendors.forEach(vendor => {
+                    const available = vendor.Quantity - vendor.Received_Qty_Base;
+                    const selected = item.Assigned_Vendor === vendor.Buy_from_Vendor_Name ? 'selected' : '';
+                    vendorOptions += `<option value="${vendor.Buy_from_Vendor_Name}" ${selected}>${vendor.Buy_from_Vendor_Name} (${available} beschikbaar)</option>`;
+                });
+
+                row.innerHTML = `
+                    <td>${item.Document_No}</td>
+                    <td class="customer-ref">${item.Customer_Reference || ''}</td>
+                    <td>${item.Item_Desc_Unloading}</td>
+                    <td>${item.Class_Code_Unloading}</td>
+                    <td>${item.Size_Code_Unloading}</td>
+                    <td>${formatDate(item.Loading_Date_Planned)}</td>
+                    <td>
+                        <div>${item.Quantity_Input}</div>
+                        <div class="quantity-info">
+                            ${item.Quantity_Packaging_1} ${item.Packaging_1_Code_Unloading}<br>
+                            ${item.Quantity_Packaging_2} ${item.Packaging_2_Code_Unloading}
+                        </div>
+                    </td>
+                    <td>
+                        <select class="teler-select" data-index="${index}" onchange="onVendorChange(${index}, this.value)">
+                            ${vendorOptions}
+                        </select>
+                        <div class="quantity-info">${matchingVendors.length} beschikbare telers</div>
+                    </td>
+                    <td>
+                        <button class="btn save-btn" onclick="saveAssignment(${index})" ${!item.Assigned_Vendor ? 'disabled' : ''}>
+                            Opslaan
+                        </button>
+                    </td>
+                `;
+
+                tbody.appendChild(row);
+            });
+
+            document.getElementById('dataTableContainer').style.display = 'block';
+        }
+
+        function onVendorChange(index, vendorName) {
+            filteredData[index].Assigned_Vendor = vendorName;
+            
+            // Enable/disable save button
+            const row = document.querySelector(`tr:nth-child(${index + 1})`);
+            const saveBtn = row.querySelector('.save-btn');
+            saveBtn.disabled = !vendorName;
+            
+            // Update row styling
+            if (vendorName) {
+                row.classList.add('assigned');
+            } else {
+                row.classList.remove('assigned');
+            }
+            
+            updateStats();
+        }
+
+        async function saveAssignment(index) {
+            const item = filteredData[index];
+            if (!item.Assigned_Vendor) return;
+
+            try {
+                // TODO: Implementeer PATCH-call naar Business Central
+                // Dit hangt af van het nieuwe veld dat je gaat aanmaken
+                showSuccess(`Teler ${item.Assigned_Vendor} toegewezen aan ${item.Document_No}`);
+                
+            } catch (error) {
+                console.error('Error saving assignment:', error);
+                showError('Fout bij opslaan: ' + error.message);
+            }
+        }
+
+        function filterTable() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const tbody = document.getElementById('dataTableBody');
+            const rows = tbody.querySelectorAll('tr');
+
+            rows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                if (text.includes(searchTerm)) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        }
+
+        function updateStats() {
+            const total = filteredData.length;
+            const assigned = filteredData.filter(item => item.Assigned_Vendor).length;
+            const open = total - assigned;
+
+            document.getElementById('totalCount').textContent = total;
+            document.getElementById('assignedCount').textContent = assigned;
+            document.getElementById('openCount').textContent = open;
+        }
+
+        function formatDate(dateString) {
+            if (!dateString) return '';
+            const date = new Date(dateString);
+            return date.toLocaleDateString('nl-NL');
+        }
+
+        function showLoading(show) {
+            document.getElementById('loadingDiv').style.display = show ? 'block' : 'none';
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('errorDiv');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+        }
+
+        function showSuccess(message) {
+            const successDiv = document.getElementById('successDiv');
+            successDiv.textContent = message;
+            successDiv.style.display = 'block';
+            setTimeout(() => {
+                successDiv.style.display = 'none';
+            }, 5000);
+        }
+
+        function hideMessages() {
+            document.getElementById('errorDiv').style.display = 'none';
+            document.getElementById('successDiv').style.display = 'none';
+        }
+    </script>
+</body>
+</html>
