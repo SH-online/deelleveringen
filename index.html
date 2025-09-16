@@ -19,7 +19,7 @@
         }
         
         .container {
-            max-width: 1400px;
+            max-width: 100%;
             margin: 0 auto;
             padding: 20px;
         }
@@ -301,13 +301,20 @@
                     <table id="dataTable">
                         <thead>
                             <tr>
-                                <th>Doc. Nr.</th>
+                                <th>Deellevering</th>
+                                <th>Klantreferentie</th>
+                                <th>Datum</th>
+                                <th>Opmerking</th>
                                 <th>Klant</th>
-                                <th>Artikel</th>
+                                <th>Land</th>
+                                <th>Ras</th>
                                 <th>Klasse</th>
                                 <th>Maat</th>
-                                <th>Datum</th>
-                                <th>Hoeveelheid</th>
+                                <th>Aantal 1</th>
+                                <th>Verp. 1</th>
+                                <th>Aantal 2</th>
+                                <th>Verp. 2</th>
+                                <th>KG</th>
                                 <th>Beschikbare Telers</th>
                                 <th>Acties</th>
                             </tr>
@@ -466,7 +473,7 @@
                 // Parallelle aanroepen voor betere performance
                 const [deelleveringenData, magazijnselectieData, inkooppartijData] = await Promise.all([
                     makeODataRequest('/Deellveringskaart?$filter=Harvest_Year_code eq \'2025\'&$select=Partial_Delivery_No,Customer_reference'),
-                    makeODataRequest('/Magazijnselectie?$filter=Delivery_Status eq \'Open\' and Harvest_Year_Code_Unloading eq \'2025\'&$select=Document_No,Document_Line_No,Item_Desc_Unloading,Size_Code_Unloading,Class_Code_Unloading,Code_Loading,Loading_Date_Planned,Quantity_Input,Quantity_Packaging_1,Packaging_1_Code_Unloading,Quantity_Packaging_2,Packaging_2_Code_Unloading'),
+                    makeODataRequest('/Magazijnselectie?$filter=Delivery_Status eq \'Open\' and Harvest_Year_Code_Unloading eq \'2025\'&$select=Document_No,Document_Line_No,Item_Desc_Unloading,Size_Code_Unloading,Class_Code_Unloading,Code_Loading,Loading_Date_Planned,Quantity_Input,Quantity_Packaging_1,Packaging_1_Code_Unloading,Quantity_Packaging_2,Packaging_2_Code_Unloading,Weight_KG,Customer_Name,Country_Code,Remarks'),
                     makeODataRequest('/Inkoopcontractregels?$filter=Harvest_Year_Code eq \'2025\' and startswith(Document_No, \'P\')&$select=Buy_from_Vendor_Name,Class_Code,Size_Code,Quantity,Description,Received_Qty_Base,Invoiced_Qty_Base')
                 ]);
 
@@ -543,17 +550,18 @@
                 row.innerHTML = `
                     <td>${item.Document_No}</td>
                     <td class="customer-ref">${item.Customer_Reference || ''}</td>
+                    <td>${formatDate(item.Loading_Date_Planned)}</td>
+                    <td>${item.Remarks || ''}</td>
+                    <td>${item.Customer_Name || ''}</td>
+                    <td>${item.Country_Code || ''}</td>
                     <td>${item.Item_Desc_Unloading}</td>
                     <td>${item.Class_Code_Unloading}</td>
                     <td>${item.Size_Code_Unloading}</td>
-                    <td>${formatDate(item.Loading_Date_Planned)}</td>
-                    <td>
-                        <div>${item.Quantity_Input}</div>
-                        <div class="quantity-info">
-                            ${item.Quantity_Packaging_1} ${item.Packaging_1_Code_Unloading}<br>
-                            ${item.Quantity_Packaging_2} ${item.Packaging_2_Code_Unloading}
-                        </div>
-                    </td>
+                    <td>${item.Quantity_Packaging_1 || ''}</td>
+                    <td>${item.Packaging_1_Code_Unloading || ''}</td>
+                    <td>${item.Quantity_Packaging_2 || ''}</td>
+                    <td>${item.Packaging_2_Code_Unloading || ''}</td>
+                    <td>${item.Weight_KG || ''}</td>
                     <td>
                         <select class="teler-select" data-index="${index}" onchange="onVendorChange(${index}, this.value)">
                             ${vendorOptions}
