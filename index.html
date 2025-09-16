@@ -465,9 +465,9 @@
             try {
                 // Parallelle aanroepen voor betere performance
                 const [deelleveringenData, magazijnselectieData, inkooppartijData] = await Promise.all([
-                    makeODataRequest('/Deellveringskaart?$filter=Harvest_Year_code eq \'2025\'&$select=Partial_Delivery_No,Customer_reference'),
-                    makeODataRequest('/Magazijnselectie?$filter=Delivery_Status eq \'Open\' and Harvest_Year_Code_Unloading eq \'2025\'&$select=Document_No,Document_Line_No,Item_Desc_Unloading,Size_Code_Unloading,Class_Code_Unloading,Code_Loading,Loading_Date_Planned,Quantity_Input,Quantity_Packaging_1,Packaging_1_Code_Unloading,Quantity_Packaging_2,Packaging_2_Code_Unloading'),
-                    makeODataRequest('/Inkoopcontractregels?$filter=Harvest_Year_Code eq \'2025\' and startswith(Document_No, \'P\')&$select=Buy_from_Vendor_Name,Class_Code,Size_Code,Quantity,Description,Received_Qty_Base,Invoiced_Qty_Base')
+                    makeODataRequest('/Deellveringskaart?$filter=Harvest_Year_code eq \'2024\'&$select=Partial_Delivery_No,Customer_reference'),
+                    makeODataRequest('/Magazijnselectie?$filter=Delivery_Status eq \'Open\' and Harvest_Year_Code_Unloading eq \'2024\'&$select=Document_No,Document_Line_No,Item_Desc_Unloading,Size_Code_Unloading,Class_Code_Unloading,Code_Loading,Loading_Date_Planned,Quantity_Input,Quantity_Packaging_1,Packaging_1_Code_Unloading,Quantity_Packaging_2,Packaging_2_Code_Unloading'),
+                    makeODataRequest('/Inkoopcontractregels?$filter=Harvest_Year_Code eq \'2024\' and startswith(Document_No, \'P\')&$select=Buy_from_Vendor_Name,Class_Code,Size_Code,Quantity,Description,Received_Qty_Base,Invoiced_Qty_Base')
                 ]);
 
                 // Combineer deelleveringen met magazijnselectie (zoals in Power Query)
@@ -526,6 +526,7 @@
 
             filteredData.forEach((item, index) => {
                 const row = document.createElement('tr');
+                row.setAttribute('data-row-index', index); // Add data attribute for easier finding
                 if (item.Assigned_Vendor) {
                     row.classList.add('assigned');
                 }
@@ -575,16 +576,20 @@
         function onVendorChange(index, vendorName) {
             filteredData[index].Assigned_Vendor = vendorName;
             
-            // Enable/disable save button
-            const row = document.querySelector(`tr:nth-child(${index + 1})`);
-            const saveBtn = row.querySelector('.save-btn');
-            saveBtn.disabled = !vendorName;
-            
-            // Update row styling
-            if (vendorName) {
-                row.classList.add('assigned');
-            } else {
-                row.classList.remove('assigned');
+            // Find the correct row using data-index attribute
+            const row = document.querySelector(`tr[data-row-index="${index}"]`);
+            if (row) {
+                const saveBtn = row.querySelector('.save-btn');
+                if (saveBtn) {
+                    saveBtn.disabled = !vendorName;
+                }
+                
+                // Update row styling
+                if (vendorName) {
+                    row.classList.add('assigned');
+                } else {
+                    row.classList.remove('assigned');
+                }
             }
             
             updateStats();
