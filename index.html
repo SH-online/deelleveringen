@@ -347,7 +347,7 @@
             auth: {
                 clientId: 'b6bac90f-29af-4137-a5f0-be4387796f56',
                 authority: 'https://login.microsoftonline.com/b4de828a-5fdb-45e1-a590-2dc802e619e4',
-                redirectUri: window.location.href.split('?')[0] // Removes query parameters
+                redirectUri: window.location.href.split('?')[0].replace(/\/$/, '') // Remove trailing slash
             },
             cache: {
                 cacheLocation: "localStorage",
